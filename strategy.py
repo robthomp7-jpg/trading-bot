@@ -23,20 +23,13 @@ def add_indicators(df):
 
 def signal_score(row):
     score = 0
-    if row["Close"] > row["SMA50"]: score += 20
-    if row["SMA20"] > row["SMA50"]: score += 20
-    if row["SMA50"] > row["SMA200"]: score += 15
-
+    if float(row["Close"]) > float(row["SMA50"]): score += 20
+    if float(row["SMA20"]) > float(row["SMA50"]): score += 20
+    if float(row["SMA50"]) > float(row["SMA200"]): score += 15
     r = float(row["RSI"])
-    if 55 <= r <= 68:
-        score += 15
-    elif 50 <= r <= 72:
-        score += 8
-
-    if row["VOL_RATIO"] >= 1.0: score += 10
-    if row["MOM20"] > 0: score += 10
-    if row["MOM60"] > 0: score += 10
+    if 55 <= r <= 68: score += 15
+    elif 50 <= r <= 72: score += 8
+    if float(row["VOL_RATIO"]) >= 1.0: score += 10
+    if float(row["MOM20"]) > 0: score += 10
+    if float(row["MOM60"]) > 0: score += 10
     return int(min(score, 100))
-
-def entry_signal(row, minimum_score=70):
-    return signal_score(row) >= minimum_score
