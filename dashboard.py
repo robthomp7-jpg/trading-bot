@@ -3,26 +3,24 @@ import plotly.express as px
 from config import *
 from backtester import run_backtest, summarise, optimise_targets, scan_current
 
-st.set_page_config(page_title="Trading Bot V2", page_icon="📈", layout="wide")
-st.title("📈 Momentum Swing Trading Bot — V2")
-st.caption("Research dashboard — historical results are not forecasts.")
+st.set_page_config(page_title="Trading Bot V3", page_icon="📈", layout="wide")
+st.title("📈 Momentum Swing Trading Bot — V3")
+st.caption("Research / paper-trading dashboard. No live orders are placed.")
 
 with st.sidebar:
     st.header("Strategy controls")
-    target = st.slider("Take-profit target",5,10,7,1)/100
-    stop = st.slider("Stop loss",2,6,3,1)/100
-    risk = st.slider("Risk per trade",0.5,3.0,2.0,0.25)/100
-    score = st.slider("Minimum signal score",50,90,70,5)
-    positions = st.slider("Maximum open positions",1,10,5)
-    capital = st.number_input("Starting capital (£)",1000.0,1000000.0,10000.0,1000.0)
+    target=st.slider("Take-profit target",5,10,7,1)/100
+    stop=st.slider("Stop loss",2,6,3,1)/100
+    risk=st.slider("Risk per trade",0.5,3.0,2.0,0.25)/100
+    score=st.slider("Minimum signal score",50,90,70,5)
+    positions=st.slider("Maximum open positions",1,10,5)
+    capital=st.number_input("Starting capital (£)",1000.0,1000000.0,10000.0,1000.0)
     st.divider()
     st.write(f"**Stocks scanned:** {len(TICKERS)}")
-    st.write(f"**Target:** +{target*100:.0f}%")
-    st.write(f"**Stop:** -{stop*100:.0f}%")
-    st.write(f"**Risk/trade:** {risk*100:.2f}%")
+    st.write("**Execution:** next-day open")
     st.write("**Trading 212:** not connected")
 
-@st.cache_data(show_spinner="Running historical backtest...")
+@st.cache_data(show_spinner="Running realistic historical backtest...")
 def bt(t,s,c,r,p,sc): return run_backtest(target=t,stop=s,initial_capital=c,risk_per_trade=r,max_positions=p,min_score=sc)
 
 @st.cache_data(show_spinner="Testing 5%–10% targets...")
@@ -45,8 +43,7 @@ tab1,tab2,tab3,tab4=st.tabs(["📈 Backtest","🎯 Target optimiser","🔎 Oppor
 
 with tab1:
     st.subheader("Equity curve")
-    if not equity.empty:
-        st.plotly_chart(px.line(equity.reset_index(),x="date",y="equity"),use_container_width=True)
+    if not equity.empty: st.plotly_chart(px.line(equity.reset_index(),x="date",y="equity"),use_container_width=True)
     if not trades.empty:
         wl=trades.assign(Result=trades.pnl.apply(lambda x:"Win" if x>0 else "Loss")).groupby("Result").size().reset_index(name="Trades")
         st.plotly_chart(px.bar(wl,x="Result",y="Trades"),use_container_width=True)
@@ -57,21 +54,23 @@ with tab1:
 
 with tab2:
     st.subheader("Which profit target works best?")
-    st.write("Tests 5%, 6%, 7%, 8%, 9% and 10% using the same rules.")
+    st.write("Tests 5%, 6%, 7%, 8%, 9% and 10% with next-day-open execution.")
     o=opt(capital,risk,positions,score)
     shown=o.copy()
     for col in ["Total Return","Win Rate","Max Drawdown","Average Trade"]: shown[col]=shown[col].map(lambda x:f"{x*100:.1f}%")
     shown["Target"]=shown["Target"].map(lambda x:f"{x*100:.0f}%")
     st.dataframe(shown,use_container_width=True,hide_index=True)
     st.plotly_chart(px.line(o,x="Target",y="Total Return",markers=True),use_container_width=True)
-    st.warning("Optimising on historical data can overfit the past. Use out-of-sample testing before trusting a setting.")
+    st.warning("Historical optimisation can overfit the past. Validate any setting on unseen data before paper trading.")
 
 with tab3:
     st.subheader("Ranked opportunities")
     s=scan(score)
-    st.dataframe(s,use_container_width=True,hide_index=True)
-    buys=s[s.Signal=="BUY"] if not s.empty else s
-    st.success(f"{len(buys)} stock(s) currently meet the {score}/100 threshold." if len(buys) else "No stocks currently meet the selected threshold.")
+    if s.empty: st.info("No scan results returned.")
+    else:
+        st.dataframe(s,use_container_width=True,hide_index=True)
+        buys=s[s["Signal"]=="BUY"]
+        st.success(f"{len(buys)} stock(s) currently meet the {score}/100 threshold." if len(buys) else f"No stocks currently meet the {score}/100 threshold.")
 
 with tab4:
     st.subheader("Individual trades")
@@ -85,4 +84,4 @@ with tab4:
                      use_container_width=True,hide_index=True)
 
 st.divider()
-st.caption("Paper/backtest only. No live orders are placed.")
+st.caption("Backtests are hypothetical. This tool is not financial advice and does not guarantee future performance.")

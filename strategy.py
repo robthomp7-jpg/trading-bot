@@ -1,10 +1,12 @@
+import numpy as np
+
 def rsi(series, period=14):
     delta = series.diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
     avg_gain = gain.ewm(alpha=1/period, adjust=False).mean()
     avg_loss = loss.ewm(alpha=1/period, adjust=False).mean()
-    rs = avg_gain / avg_loss.replace(0, float("nan"))
+    rs = avg_gain / avg_loss.replace(0, np.nan)
     return 100 - (100 / (1 + rs))
 
 def add_indicators(df):
@@ -27,10 +29,10 @@ def signal_score(row):
     r = float(row["RSI"])
     if 55 <= r <= 68: score += 15
     elif 50 <= r <= 72: score += 8
-    if row["Volume"] > row["VOL20"]: score += 10
+    if row["VOL_RATIO"] >= 1.0: score += 10
     if row["MOM20"] > 0: score += 10
     if row["MOM60"] > 0: score += 10
-    return min(score, 100)
+    return int(min(score, 100))
 
 def entry_signal(row, minimum_score=70):
     return signal_score(row) >= minimum_score

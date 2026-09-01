@@ -1,16 +1,7 @@
-# Trading Bot V2
+# Trading Bot V3
 
-Upload these files to the root of the GitHub repository used by Streamlit.
+This version fixes an important V2 backtesting flaw: signals are calculated from the completed prior trading day and entries are assumed at the following day's open. This avoids look-ahead from using the same closing price to both generate and execute a signal.
 
-V2 adds:
-- 35-stock starter universe
-- 100-point stock ranking score
-- risk-based position sizing
-- adjustable target, stop, risk and signal threshold
-- 5%–10% target optimiser
-- equity curve and win/loss statistics
-- ranked current opportunity scanner
-- individual trade history
-- no live Trading 212 orders
+It also uses daily high/low for exits, handles opening gaps, uses a conservative stop-first assumption when both target and stop are touched on the same daily bar, includes commission/slippage, and provides stock ranking plus 5%-10% target optimisation.
 
-This is a research/backtesting tool and does not guarantee future returns.
+Paper/backtest only. No Trading 212 orders are placed.
