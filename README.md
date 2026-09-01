@@ -1,21 +1,16 @@
-# Trading Bot Dashboard
+# Trading Bot V2
 
-## Install
-pip install -r requirements.txt
+Upload these files to the root of the GitHub repository used by Streamlit.
 
-## Launch
-streamlit run dashboard.py
+V2 adds:
+- 35-stock starter universe
+- 100-point stock ranking score
+- risk-based position sizing
+- adjustable target, stop, risk and signal threshold
+- 5%–10% target optimiser
+- equity curve and win/loss statistics
+- ranked current opportunity scanner
+- individual trade history
+- no live Trading 212 orders
 
-The dashboard shows:
-- equity curve
-- total return
-- win rate
-- profit factor
-- maximum drawdown
-- wins vs losses
-- every individual trade
-- current stock scan and BUY/WAIT signals
-
-The strategy is intentionally a starting point. It targets +7% and stops around -3%.
-
-The Trading 212 integration is intentionally not connected to live order placement. Trading 212's official API currently provides a Demo/Paper Trading environment, which should be used before any live deployment.
+This is a research/backtesting tool and does not guarantee future returns.

@@ -1,67 +1,88 @@
 import streamlit as st
 import plotly.express as px
-from backtester import run_backtest, scan_current
 from config import *
+from backtester import run_backtest, summarise, optimise_targets, scan_current
 
-st.set_page_config(page_title="Momentum Trading Bot", page_icon="📈", layout="wide")
-st.title("📈 Momentum Swing Trading Bot")
-st.caption("Backtest + stock scanner dashboard | Default target +7% / stop -3%")
+st.set_page_config(page_title="Trading Bot V2", page_icon="📈", layout="wide")
+st.title("📈 Momentum Swing Trading Bot — V2")
+st.caption("Research dashboard — historical results are not forecasts.")
+
+with st.sidebar:
+    st.header("Strategy controls")
+    target = st.slider("Take-profit target",5,10,7,1)/100
+    stop = st.slider("Stop loss",2,6,3,1)/100
+    risk = st.slider("Risk per trade",0.5,3.0,2.0,0.25)/100
+    score = st.slider("Minimum signal score",50,90,70,5)
+    positions = st.slider("Maximum open positions",1,10,5)
+    capital = st.number_input("Starting capital (£)",1000.0,1000000.0,10000.0,1000.0)
+    st.divider()
+    st.write(f"**Stocks scanned:** {len(TICKERS)}")
+    st.write(f"**Target:** +{target*100:.0f}%")
+    st.write(f"**Stop:** -{stop*100:.0f}%")
+    st.write(f"**Risk/trade:** {risk*100:.2f}%")
+    st.write("**Trading 212:** not connected")
 
 @st.cache_data(show_spinner="Running historical backtest...")
-def get_backtest():
-    return run_backtest()
+def bt(t,s,c,r,p,sc): return run_backtest(target=t,stop=s,initial_capital=c,risk_per_trade=r,max_positions=p,min_score=sc)
 
-@st.cache_data(ttl=900, show_spinner="Scanning current market data...")
-def get_scan():
-    return scan_current()
+@st.cache_data(show_spinner="Testing 5%–10% targets...")
+def opt(c,r,p,sc): return optimise_targets(initial_capital=c,risk_per_trade=r,max_positions=p,min_score=sc)
 
-trades, equity = get_backtest()
-scan = get_scan()
+@st.cache_data(ttl=900,show_spinner="Scanning stocks...")
+def scan(sc): return scan_current(min_score=sc)
 
-if trades.empty:
-    st.error("No trades were generated. Try a wider date range or a larger stock universe.")
-    st.stop()
+trades,equity=bt(target,stop,capital,risk,positions,score)
+summary=summarise(trades,equity,capital)
 
-wins = trades[trades.pnl > 0]
-losses = trades[trades.pnl <= 0]
-final_equity = float(equity.iloc[-1].equity)
-total_return = final_equity / INITIAL_CAPITAL - 1
-max_dd = (equity.equity / equity.equity.cummax() - 1).min()
-pf = wins.pnl.sum() / abs(losses.pnl.sum()) if len(losses) else float("inf")
+c1,c2,c3,c4,c5=st.columns(5)
+c1.metric("Final equity",f"£{equity.equity.iloc[-1]:,.0f}" if not equity.empty else "—")
+c2.metric("Total return",f"{summary['Total return']*100:.1f}%")
+c3.metric("Win rate",f"{summary['Win rate']*100:.1f}%")
+c4.metric("Profit factor",f"{summary['Profit factor']:.2f}")
+c5.metric("Max drawdown",f"{summary['Max drawdown']*100:.1f}%")
 
-c1,c2,c3,c4,c5 = st.columns(5)
-c1.metric("Final equity", f"£{final_equity:,.0f}")
-c2.metric("Total return", f"{total_return*100:.1f}%")
-c3.metric("Win rate", f"{len(wins)/len(trades)*100:.1f}%")
-c4.metric("Profit factor", f"{pf:.2f}")
-c5.metric("Max drawdown", f"{max_dd*100:.1f}%")
+tab1,tab2,tab3,tab4=st.tabs(["📈 Backtest","🎯 Target optimiser","🔎 Opportunity scanner","📋 Trades"])
 
-st.subheader("Equity curve")
-eq = equity.reset_index()
-fig = px.line(eq, x="date", y="equity", title="Portfolio equity")
-fig.update_layout(yaxis_title="£", xaxis_title="")
-st.plotly_chart(fig, use_container_width=True)
+with tab1:
+    st.subheader("Equity curve")
+    if not equity.empty:
+        st.plotly_chart(px.line(equity.reset_index(),x="date",y="equity"),use_container_width=True)
+    if not trades.empty:
+        wl=trades.assign(Result=trades.pnl.apply(lambda x:"Win" if x>0 else "Loss")).groupby("Result").size().reset_index(name="Trades")
+        st.plotly_chart(px.bar(wl,x="Result",y="Trades"),use_container_width=True)
+        a,b,c=st.columns(3)
+        a.metric("Average trade",f"{summary['Avg trade']*100:.2f}%")
+        b.metric("Average winner",f"{trades.loc[trades.pnl>0,'return_pct'].mean()*100:.2f}%" if (trades.pnl>0).any() else "—")
+        c.metric("Average loser",f"{trades.loc[trades.pnl<=0,'return_pct'].mean()*100:.2f}%" if (trades.pnl<=0).any() else "—")
 
-st.subheader("Win / loss statistics")
-a,b = st.columns(2)
-with a:
-    stats = {
-        "Trades": len(trades),
-        "Winners": len(wins),
-        "Losers": len(losses),
-        "Average trade": f"{trades.return_pct.mean()*100:.2f}%",
-        "Average winner": f"{wins.return_pct.mean()*100:.2f}%" if len(wins) else "n/a",
-        "Average loser": f"{losses.return_pct.mean()*100:.2f}%" if len(losses) else "n/a",
-    }
-    st.dataframe(stats.items(), use_container_width=True, hide_index=True)
-with b:
-    wl = trades.assign(Result=trades.pnl.apply(lambda x:"Win" if x>0 else "Loss")).groupby("Result").size().reset_index(name="Trades")
-    st.plotly_chart(px.bar(wl,x="Result",y="Trades",title="Wins vs losses"),use_container_width=True)
+with tab2:
+    st.subheader("Which profit target works best?")
+    st.write("Tests 5%, 6%, 7%, 8%, 9% and 10% using the same rules.")
+    o=opt(capital,risk,positions,score)
+    shown=o.copy()
+    for col in ["Total Return","Win Rate","Max Drawdown","Average Trade"]: shown[col]=shown[col].map(lambda x:f"{x*100:.1f}%")
+    shown["Target"]=shown["Target"].map(lambda x:f"{x*100:.0f}%")
+    st.dataframe(shown,use_container_width=True,hide_index=True)
+    st.plotly_chart(px.line(o,x="Target",y="Total Return",markers=True),use_container_width=True)
+    st.warning("Optimising on historical data can overfit the past. Use out-of-sample testing before trusting a setting.")
 
-st.subheader("Individual trades")
-st.dataframe(trades.sort_values("exit_date", ascending=False), use_container_width=True, hide_index=True)
+with tab3:
+    st.subheader("Ranked opportunities")
+    s=scan(score)
+    st.dataframe(s,use_container_width=True,hide_index=True)
+    buys=s[s.Signal=="BUY"] if not s.empty else s
+    st.success(f"{len(buys)} stock(s) currently meet the {score}/100 threshold." if len(buys) else "No stocks currently meet the selected threshold.")
 
-st.subheader("Stocks the bot is finding")
-st.dataframe(scan, use_container_width=True, hide_index=True)
+with tab4:
+    st.subheader("Individual trades")
+    if trades.empty: st.info("No trades generated.")
+    else:
+        v=trades.sort_values("exit_date",ascending=False).copy()
+        v["Result"]=v.pnl.apply(lambda x:"WIN" if x>0 else "LOSS")
+        v["Return"]=v.return_pct.map(lambda x:f"{x*100:.2f}%")
+        v["P/L"]=v.pnl.map(lambda x:f"£{x:,.2f}")
+        st.dataframe(v[["ticker","entry_date","exit_date","entry","exit","capital","P/L","Return","Result","reason","hold_days","score"]],
+                     use_container_width=True,hide_index=True)
 
-st.info("This is a research/backtesting tool, not a guarantee of returns. Use paper trading before risking real money.")
+st.divider()
+st.caption("Paper/backtest only. No live orders are placed.")
