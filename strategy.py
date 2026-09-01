@@ -14,7 +14,7 @@ def add_indicators(df):
     x["SMA20"] = x["Close"].rolling(20).mean()
     x["SMA50"] = x["Close"].rolling(50).mean()
     x["SMA200"] = x["Close"].rolling(200).mean()
-    x["RSI"] = rsi(x["Close"])
+    x["RSI"] = rsi(x["Close"], 14)
     x["VOL20"] = x["Volume"].rolling(20).mean()
     x["MOM20"] = x["Close"].pct_change(20)
     x["MOM60"] = x["Close"].pct_change(60)
@@ -26,9 +26,13 @@ def signal_score(row):
     if row["Close"] > row["SMA50"]: score += 20
     if row["SMA20"] > row["SMA50"]: score += 20
     if row["SMA50"] > row["SMA200"]: score += 15
+
     r = float(row["RSI"])
-    if 55 <= r <= 68: score += 15
-    elif 50 <= r <= 72: score += 8
+    if 55 <= r <= 68:
+        score += 15
+    elif 50 <= r <= 72:
+        score += 8
+
     if row["VOL_RATIO"] >= 1.0: score += 10
     if row["MOM20"] > 0: score += 10
     if row["MOM60"] > 0: score += 10

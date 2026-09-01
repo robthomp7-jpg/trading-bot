@@ -1,7 +1,20 @@
-# Trading Bot V3
+# Trading Bot V4
 
-This version fixes an important V2 backtesting flaw: signals are calculated from the completed prior trading day and entries are assumed at the following day's open. This avoids look-ahead from using the same closing price to both generate and execute a signal.
+V4 fixes the target optimiser architecture.
 
-It also uses daily high/low for exits, handles opening gaps, uses a conservative stop-first assumption when both target and stop are touched on the same daily bar, includes commission/slippage, and provides stock ranking plus 5%-10% target optimisation.
+The historical dataset is downloaded once and then every 5%-10% target is tested against the exact same data and signals. The selected target only changes the exit condition.
 
-Paper/backtest only. No Trading 212 orders are placed.
+Other protections:
+- signal from previous completed day
+- entry at following day's open
+- gap-aware target/stop
+- conservative stop-first assumption if both are touched on one daily bar
+- commission and slippage
+- risk-based sizing
+- maximum holding period
+- force-close of remaining positions at end of test
+- cache clear button
+- 35-stock scanner
+- equity curve, trades, win rate, profit factor and drawdown
+
+This remains a research/paper-trading tool and does not place live orders.
